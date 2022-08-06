@@ -12,6 +12,12 @@ export class TsMorphOutputer {
     },
   });
 
+  protected indexes: {
+    main: SourceFile;
+    lg: SourceFile;
+    ose: SourceFile;
+  };
+
   constructor(protected readonly services: Service[]) { }
 
   public async output() {
@@ -22,9 +28,23 @@ export class TsMorphOutputer {
       }),
     );
 
+    this.indexes = {
+      main: this.project.createSourceFile('out-ts/index.d.ts'),
+      lg: this.project.createSourceFile('out-ts/lg/index.d.ts'),
+      ose: this.project.createSourceFile('out-ts/ose/index.d.ts'),
+    };
+
     for (const s of this.services) {
       this.transformService(s);
     }
+
+    this.indexes['main'].addExportDeclarations(
+      (['lg', 'ose'] as const).map((group) => ({
+        moduleSpecifier: this.indexes[
+          'main'
+        ].getRelativePathAsModuleSpecifierTo(this.indexes[group]),
+      })),
+    );
 
     console.log('Done generating ts-morph, saving.');
     await this.project.save();
@@ -39,6 +59,7 @@ export class TsMorphOutputer {
       ).toLowerCase()}.d.ts`,
     );
 
+    const indexFile = this.indexes[service.group!];
     serviceFile.addInterface({
       name: Strings.pascalCase(service.title),
       docs: [service.uri],
@@ -56,26 +77,42 @@ export class TsMorphOutputer {
       for (const [group, endpoints] of Object.entries(splittedEndpoints)) {
         const subServiceFile = this.project.createSourceFile(
           `out-ts/${service.group || 'lg'}/${Strings.snakeCase(
+            service.title,
+          )}/${Strings.snakeCase(
             service.title + ' ' + group,
           ).toLowerCase()}.d.ts`,
         );
 
-        endpoints.forEach((e) => {
-          this.transformEndpoint(subServiceFile, service, e);
-        });
+        this.writeSourceFile(service, endpoints, subServiceFile, serviceFile);
       }
+
+      indexFile.addExportDeclaration({
+        moduleSpecifier:
+          indexFile.getRelativePathAsModuleSpecifierTo(serviceFile),
+      });
     } else if (service.endpoints.length > 20) {
       console.warn(
         `Service ${service.title} is a big service that we couldn't split, might fail.`,
       );
-      service.endpoints.forEach((e) => {
-        this.transformEndpoint(serviceFile, service, e);
-      });
+      this.writeSourceFile(service, service.endpoints, serviceFile, indexFile);
     } else {
-      service.endpoints.forEach((e) => {
-        this.transformEndpoint(serviceFile, service, e);
-      });
+      this.writeSourceFile(service, service.endpoints, serviceFile, indexFile);
     }
+  }
+
+  protected writeSourceFile(
+    service: Service,
+    endpoints: Service['endpoints'],
+    sourceFile: SourceFile,
+    reExportIn: SourceFile,
+  ) {
+    endpoints.forEach((e) => {
+      this.transformEndpoint(sourceFile, service, e);
+    });
+    reExportIn.addExportDeclaration({
+      moduleSpecifier:
+        reExportIn.getRelativePathAsModuleSpecifierTo(sourceFile),
+    });
   }
 
   protected transformEndpoint(

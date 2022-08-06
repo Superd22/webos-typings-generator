@@ -2,7 +2,7 @@ export interface Service {
   uri: string;
   title: string;
   /** group of services (lg/ose/...) */
-  group?: string;
+  group?: 'lg' | 'ose';
   endpoints: Endpoint[];
 }
 
