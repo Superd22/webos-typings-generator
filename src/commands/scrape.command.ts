@@ -20,7 +20,7 @@ export class ScrapeCommand extends CommandRunner {
     console.log('Starting scrape');
 
 
-    for (const urls of this.chunkArray(this.config.ose.endpoints, 10)) {
+    for (const urls of this.chunkArray(this.config.ose.endpoints, 3)) {
       await Promise.all(
         urls.map(async (url) =>
           services.push(await new OSEScrapper(url).scrape()),
@@ -28,17 +28,15 @@ export class ScrapeCommand extends CommandRunner {
       );
     }
 
-    // for (const urls of this.chunkArray(this.config.lg.endpoints, 10)) {
-    //   await Promise.all(
-    //     urls.map(async (url) =>
-    //       services.push(await new LGScrapper(url).scrape()),
-    //     ),
-    //   );
-    // }
+    for (const urls of this.chunkArray(this.config.lg.endpoints, 3)) {
+      await Promise.all(
+        urls.map(async (url) =>
+          services.push(await new LGScrapper(url).scrape()),
+        ),
+      );
+    }
 
-    console.log(
-      'Done scrapping, generating',
-    );
+    console.log('Done scrapping, generating');
 
     await new TsMorphOutputer(services).output();
 

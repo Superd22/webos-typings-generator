@@ -66,19 +66,22 @@ export class OSEScrapper implements Scrapper {
         return [name, url];
       });
 
+    const scrapped = [];
+    for (const endpoint of endpoints) {
+      scrapped.push(await this.scrapeEndpoint(endpoint));
+    }
     return {
       title: this.serviceTitle,
       uri,
       group: 'ose',
-      endpoints: await Promise.all(
-        endpoints.map((e) => this.scrapeEndpoint(e)),
-      ),
+      endpoints: scrapped,
     };
   }
 
   protected async scrapeEndpoint(
     endpoint: ScrappedEndpoint,
   ): Promise<Endpoint> {
+    console.debug('Scraping endpoint', endpoint[0]);
     const parameters = this.extractParams(endpoint);
     console.debug('Done scraping params of endpoing', endpoint[0]);
     const errors = this.extractErrors(endpoint);
@@ -98,12 +101,13 @@ export class OSEScrapper implements Scrapper {
     };
   }
 
-  protected extractParams(endpoint: ScrappedEndpoint): LiteralType {
+  protected extractParams(endpoint: ScrappedEndpoint): Type {
     const table = this.findTable(endpoint, 'Parameters');
-    if (!table)
-      throw new Error(
-        `Could not find params for ${this.serviceTitle} ${endpoint[0]}`,
-      );
+
+    if (!table) {
+      return 'never';
+    }
+
     return this.extractObjectLiteralFromTable(
       Strings.pascalCase(endpoint[0]) + Strings.pascalCase('Parameters'),
       table,
@@ -172,32 +176,50 @@ export class OSEScrapper implements Scrapper {
       properties: propertiesElements.map((p) => {
         const rawTypeOfProperty = this.$('td:nth-child(3)', p)
           .text()
-          .replace('array', '')
           .replace(/\s/g, '')
           .toLowerCase();
 
         let type: Type;
         if (rawTypeOfProperty.toLowerCase().startsWith('object')) {
-          const link = this.$('td:nth-child(3) a', p)
-            .attr('href')!
-            .replace('$', '')
-            .replace(/\s/g, '');
+          let hasLink = this.$('td:nth-child(3) a', p)!.attr('href');
+          if (hasLink) {
+            if (nameOfObject === 'AudioList' && hasLink === '#audiolist') {
+              hasLink = '#audiolist-1';
+            }
 
-          const tableOfObject = this.$(link).next('.table-container').children('table')[0]
+            const link = hasLink.replace('$', '').replace(/\s/g, '');
 
-          if (link && tableOfObject) {
-            const objectName = Strings.pascalCase(
-              this.$(link).text().replace(/\s/g, ''),
-            );
-            type = this.extractObjectLiteralFromTable(
-              objectName,
-              tableOfObject,
-            );
+            const tableOfObject = this.$(link)
+              .nextUntil('h3', '.table-container')
+              .children('table')[0];
+
+            if (link && tableOfObject) {
+              const objectName = Strings.pascalCase(
+                this.$(link).text().replace(/\s/g, ''),
+              );
+
+              // We're referencing ourselves
+              if (objectName === nameOfObject) {
+                type = 'parent';
+              } else {
+                type = this.extractObjectLiteralFromTable(
+                  objectName,
+                  tableOfObject,
+                );
+              }
+            } else {
+              type = 'any';
+            }
           } else {
             type = 'any';
           }
         } else {
-          type = rawTypeOfProperty as ScalarType;
+          type = rawTypeOfProperty.replace('array', '') as ScalarType;
+          const hasSubType = type.match(/(\((.*)\))/);
+          if (hasSubType?.length && hasSubType[2]) {
+            // @todo add it to docs or something
+            type = type.replace(hasSubType[1], '') as ScalarType;
+          }
         }
 
         return {
