@@ -173,6 +173,16 @@ export class OSEScrapper implements Scrapper {
 
     const literalType: LiteralType = {
       name: nameOfObject,
+      docs: Strings.toDocs(
+        this.$(
+          this.$(table)
+            .parents('.table-container')
+            .first()
+            .prevUntil('h3')
+            .toArray()
+            .reverse(),
+        ).text(),
+      ),
       properties: propertiesElements.map((p) => {
         const rawTypeOfProperty = this.$('td:nth-child(3)', p)
           .text()
@@ -224,13 +234,7 @@ export class OSEScrapper implements Scrapper {
 
         return {
           name: this.$('td:nth-child(1)', p).text().replace(/\s/g, ''),
-          docs: this.$('td:nth-child(4)', p)
-            .text()
-            .replace(/[\r\t\f\v]/g, '')
-            .trim()
-            .split(/\n/)
-            .map((l) => l.trim())
-            .filter((l) => !!l),
+          docs: Strings.toDocs(this.$('td:nth-child(4)', p).text()),
           type,
           array: rawTypeOfProperty.includes('array'),
           required:

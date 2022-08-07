@@ -8,6 +8,7 @@ export interface Service {
 
 export interface Endpoint {
   name: string;
+  docs?: string[];
   parameters: Type;
   callReturn?: LiteralType;
   subscriptionReturn?: LiteralType;
@@ -17,6 +18,7 @@ export interface Endpoint {
 export interface Property {
   name: string;
   type: Type;
+  docs?: string[];
   array?: boolean;
   required?: boolean;
 }
@@ -31,6 +33,7 @@ export type ScalarType = 'boolean' | 'string' | 'number' | 'never' | 'parent' | 
 export interface LiteralType {
   name: string;
   properties: Property[];
+  docs?: string[];
 }
 
 export type Type = ScalarType | LiteralType;

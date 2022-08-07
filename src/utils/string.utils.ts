@@ -1,4 +1,4 @@
-import { snakeCase, camelCase } from 'lodash'
+import { snakeCase, camelCase } from 'lodash';
 
 export class Strings {
   /**
@@ -30,6 +30,17 @@ export class Strings {
   }
 
   public static snakeCase(str: string): string {
-    return snakeCase(str)
+    return snakeCase(str);
+  }
+
+  /**
+   * Converts a string to a bunch of docs split'd by
+   * new lines
+   */
+  public static toDocs(str: string): string[] {
+    return str
+      .replace(/[\r\t\f\v]/g, '')
+      .trim()
+      .split(/\n/);
   }
 }

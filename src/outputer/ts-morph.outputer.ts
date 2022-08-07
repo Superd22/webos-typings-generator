@@ -173,22 +173,23 @@ export class TsMorphOutputer {
       Strings.pascalCase(service.title) + Strings.pascalCase(type.name);
     const existing = sourceFile.getInterface(interfaceName);
     if (existing) return existing;
-    // if (interfaceName.includes('Bluetooth2Mesh')) {
-    //   debugger;
-    //   return sourceFile.getInterfaces()[0];
-    // }
+
     return sourceFile.addInterface({
       name: interfaceName,
       isExported: true,
+      docs: type.docs,
       properties: type.properties.map((p) => {
+        const propertyType = this.tsTypeFromScrapeType(
+          sourceFile,
+          service,
+          interfaceName,
+          p.type,
+        );
+
         return {
           name: p.name,
-          type: `${this.tsTypeFromScrapeType(
-            sourceFile,
-            service,
-            interfaceName,
-            p.type,
-          )}${p.array ? '[]' : ''}`,
+          docs: p.docs,
+          type: `${propertyType}${p.array ? '[]' : ''}`,
           hasQuestionToken: !p.required,
         };
       }),
